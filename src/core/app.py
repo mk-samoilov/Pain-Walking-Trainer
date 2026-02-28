@@ -194,17 +194,18 @@ class App:
     def _draw_agents(self, sw: int, sh: int) -> None:
         if self._show_all:
             for i, agent in enumerate(self._agents):
-                if i == self._watched_idx:
+                if i == self._watched_idx or not agent.alive:
                     continue
                 states = agent.get_render_state()
                 self._renderer.draw_agent(states, sw, sh, color=(0.7, 0.7, 0.8, self._ghost_alpha))
                 if self._show_collisions:
                     self._renderer.draw_collision_shapes(states, sw, sh)
 
-        states = self._agents[self._watched_idx].get_render_state()
-        self._renderer.draw_agent(states, sw, sh, color=(1.0, 1.0, 1.0, 1.0))
-        if self._show_collisions:
-            self._renderer.draw_collision_shapes(states, sw, sh)
+        if self._agents[self._watched_idx].alive:
+            states = self._agents[self._watched_idx].get_render_state()
+            self._renderer.draw_agent(states, sw, sh, color=(1.0, 1.0, 1.0, 1.0))
+            if self._show_collisions:
+                self._renderer.draw_collision_shapes(states, sw, sh)
 
     # ------------------------------------------------------------------
     # ImGui  (imgui-bundle API: enum-style constants, Vec2 positions)
