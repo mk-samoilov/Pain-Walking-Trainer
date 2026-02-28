@@ -1,0 +1,11 @@
+.venv
+venv
+
+__pycache__
+
+.idea
+
+.env
+
+.claude
+CLAUDE.md
