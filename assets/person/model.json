@@ -1,0 +1,197 @@
+{
+  "meta": {
+    "name": "default_human",
+    "version": "1.0"
+  },
+  "parts": {
+    "body": {
+      "svg": "body.svg",
+      "width": 0.30,
+      "height": 0.50,
+      "mass": 10.0,
+      "offset": [0.0, 0.0],
+      "collision_shape": "box",
+      "is_root": true,
+      "mirror": false,
+      "fatal_ground_contact": false
+    },
+    "head": {
+      "svg": "head.svg",
+      "width": 0.25,
+      "height": 0.25,
+      "mass": 3.0,
+      "offset": [0.0, 0.375],
+      "collision_shape": "circle",
+      "mirror": false,
+      "fatal_ground_contact": false
+    },
+    "upper_arm_L": {
+      "svg": "upper_arm.svg",
+      "width": 0.10,
+      "height": 0.28,
+      "mass": 2.0,
+      "offset": [-0.15, 0.06],
+      "collision_shape": "box",
+      "mirror": false
+    },
+    "upper_arm_R": {
+      "svg": "upper_arm.svg",
+      "width": 0.10,
+      "height": 0.28,
+      "mass": 2.0,
+      "offset": [0.15, 0.06],
+      "collision_shape": "box",
+      "mirror": true
+    },
+    "hand_L": {
+      "svg": "hand.svg",
+      "width": 0.08,
+      "height": 0.24,
+      "mass": 1.0,
+      "offset": [-0.15, -0.20],
+      "collision_shape": "box",
+      "mirror": false
+    },
+    "hand_R": {
+      "svg": "hand.svg",
+      "width": 0.08,
+      "height": 0.24,
+      "mass": 1.0,
+      "offset": [0.15, -0.20],
+      "collision_shape": "box",
+      "mirror": true
+    },
+    "upper_leg_L": {
+      "svg": "upper_leg.svg",
+      "width": 0.13,
+      "height": 0.30,
+      "mass": 4.0,
+      "offset": [-0.10, -0.37],
+      "collision_shape": "box",
+      "mirror": false
+    },
+    "upper_leg_R": {
+      "svg": "upper_leg.svg",
+      "width": 0.13,
+      "height": 0.30,
+      "mass": 4.0,
+      "offset": [0.10, -0.37],
+      "collision_shape": "box",
+      "mirror": true
+    },
+    "foot_L": {
+      "svg": "foot.svg",
+      "width": 0.11,
+      "height": 0.30,
+      "mass": 2.0,
+      "offset": [-0.10, -0.67],
+      "collision_shape": "box",
+      "mirror": false
+    },
+    "foot_R": {
+      "svg": "foot.svg",
+      "width": 0.11,
+      "height": 0.30,
+      "mass": 2.0,
+      "offset": [0.10, -0.67],
+      "collision_shape": "box",
+      "mirror": true
+    }
+  },
+  "joints": {
+    "neck": {
+      "parent": "body",
+      "child": "head",
+      "anchor_on_parent": [0.0, 0.25],
+      "anchor_on_child": [0.0, -0.125],
+      "angle_min": -0.524,
+      "angle_max": 0.524,
+      "motor_max_torque": 20.0,
+      "motor_speed": 5.0
+    },
+    "shoulder_L": {
+      "parent": "body",
+      "child": "upper_arm_L",
+      "anchor_on_parent": [-0.15, 0.20],
+      "anchor_on_child": [0.0, 0.14],
+      "angle_min": -3.1416,
+      "angle_max": 1.5708,
+      "motor_max_torque": 50.0,
+      "motor_speed": 5.0
+    },
+    "shoulder_R": {
+      "parent": "body",
+      "child": "upper_arm_R",
+      "anchor_on_parent": [0.15, 0.20],
+      "anchor_on_child": [0.0, 0.14],
+      "angle_min": -1.5708,
+      "angle_max": 3.1416,
+      "motor_max_torque": 50.0,
+      "motor_speed": 5.0
+    },
+    "elbow_L": {
+      "parent": "upper_arm_L",
+      "child": "hand_L",
+      "anchor_on_parent": [0.0, -0.14],
+      "anchor_on_child": [0.0, 0.12],
+      "angle_min": -2.618,
+      "angle_max": 0.0,
+      "motor_max_torque": 30.0,
+      "motor_speed": 5.0
+    },
+    "elbow_R": {
+      "parent": "upper_arm_R",
+      "child": "hand_R",
+      "anchor_on_parent": [0.0, -0.14],
+      "anchor_on_child": [0.0, 0.12],
+      "angle_min": 0.0,
+      "angle_max": 2.618,
+      "motor_max_torque": 30.0,
+      "motor_speed": 5.0
+    },
+    "hip_L": {
+      "parent": "body",
+      "child": "upper_leg_L",
+      "anchor_on_parent": [-0.10, -0.22],
+      "anchor_on_child": [0.0, 0.15],
+      "angle_min": -1.5708,
+      "angle_max": 2.094,
+      "motor_max_torque": 100.0,
+      "motor_speed": 5.0
+    },
+    "hip_R": {
+      "parent": "body",
+      "child": "upper_leg_R",
+      "anchor_on_parent": [0.10, -0.22],
+      "anchor_on_child": [0.0, 0.15],
+      "angle_min": -2.094,
+      "angle_max": 1.5708,
+      "motor_max_torque": 100.0,
+      "motor_speed": 5.0
+    },
+    "knee_L": {
+      "parent": "upper_leg_L",
+      "child": "foot_L",
+      "anchor_on_parent": [0.0, -0.15],
+      "anchor_on_child": [0.0, 0.15],
+      "angle_min": 0.0,
+      "angle_max": 2.618,
+      "motor_max_torque": 80.0,
+      "motor_speed": 5.0
+    },
+    "knee_R": {
+      "parent": "upper_leg_R",
+      "child": "foot_R",
+      "anchor_on_parent": [0.0, -0.15],
+      "anchor_on_child": [0.0, 0.15],
+      "angle_min": -2.618,
+      "angle_max": 0.0,
+      "motor_max_torque": 80.0,
+      "motor_speed": 5.0
+    }
+  },
+  "collision_filter": {
+    "self_collide": false,
+    "ground_collide": true
+  }
+}

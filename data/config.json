@@ -1,0 +1,47 @@
+{
+  "window": {
+    "width": 1280,
+    "height": 720,
+    "title": "WalkAI - 2D Walking Simulation",
+    "fps_target": 60,
+    "vsync": true
+  },
+  "physics": {
+    "gravity": [0, -9.81],
+    "time_step": 0.01667,
+    "velocity_iterations": 8,
+    "position_iterations": 3,
+    "ground_friction": 0.8,
+    "ground_restitution": 0.05
+  },
+  "simulation": {
+    "population_size": 10,
+    "simulation_time": 15.0,
+    "speed_multiplier": 1,
+    "head_death": true
+  },
+  "ai": {
+    "hidden_layers": [20, 20],
+    "activation": "tanh",
+    "elite_count": 2,
+    "mutation_rate": 0.1,
+    "mutation_strength": 0.3,
+    "crossover_rate": 0.7
+  },
+  "fitness": {
+    "weight_distance": 1.0,
+    "weight_speed": 1.0,
+    "weight_height": 0.3,
+    "weight_survival": 0.1
+  },
+  "rendering": {
+    "pixels_per_meter": 200,
+    "show_all_agents": true,
+    "ghost_alpha": 0.3,
+    "show_neural_network": false,
+    "show_fitness_graph": false,
+    "show_collisions": false,
+    "show_joint_limits": false,
+    "camera_smoothing": 0.05
+  }
+}
