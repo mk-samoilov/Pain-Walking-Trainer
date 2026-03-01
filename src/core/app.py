@@ -195,12 +195,15 @@ class App:
 
             sw, sh = glfw.get_framebuffer_size(self._window)
             self._renderer.begin_frame(sw, sh)
-            self._renderer.draw_ground(sw, sh)
-            self._draw_agents(sw, sh)
-            if self._laser_enabled:
-                self._renderer.draw_laser(self._laser_x, sw, sh)
 
-            if self._agents[self._watched_idx].alive:
+            render_scene = self._speed <= 200
+            if render_scene:
+                self._renderer.draw_ground(sw, sh)
+                self._draw_agents(sw, sh)
+                if self._laser_enabled:
+                    self._renderer.draw_laser(self._laser_x, sw, sh)
+
+            if render_scene and self._agents[self._watched_idx].alive:
                 inputs = self._agents[self._watched_idx].get_nn_inputs()
                 self._last_activations = self._networks[self._watched_idx].forward_with_activations(inputs)
 
@@ -309,7 +312,7 @@ class App:
         imgui.separator()
 
         _, self._paused = imgui.checkbox("Pause", self._paused)
-        _, self._speed = imgui.slider_int("Speed x", self._speed, 1, 200)
+        _, self._speed = imgui.slider_int("Speed x", self._speed, 1, 1000)
         _, self._show_all = imgui.checkbox("Show all agents", self._show_all)
         _, self._show_collisions = imgui.checkbox("Show collisions", self._show_collisions)
         _, self._show_nn_window = imgui.checkbox("Show NN window", self._show_nn_window)
