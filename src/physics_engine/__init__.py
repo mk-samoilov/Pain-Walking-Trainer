@@ -1,5 +1,7 @@
 """Ragdoll physics simulation built on pymunk (Chipmunk2D)."""
 
+import math
+
 import numpy as np
 import pymunk
 
@@ -20,9 +22,9 @@ class RagdollAgent:
     def __init__(self, model_cfg: dict, physics_cfg: dict, sim_cfg: dict) -> None:
         """Create space, ground plane and ragdoll from config dicts."""
 
-        self._model_cfg   = model_cfg
+        self._model_cfg = model_cfg
         self._physics_cfg = physics_cfg
-        self._sim_cfg     = sim_cfg
+        self._sim_cfg = sim_cfg
 
         self.space = pymunk.Space()
         self.space.gravity = tuple(physics_cfg["gravity"])
@@ -40,6 +42,7 @@ class RagdollAgent:
         self.age = 0.0
         self._initial_x = float(self.parts["body"].position.x)
         self._height_sum = 0.0
+        self._upright_sum = 0.0
         self._height_n = 0
 
     def _create_ground(self) -> None:
@@ -114,7 +117,8 @@ class RagdollAgent:
         self.age += dt
 
         self._height_sum += float(self.parts["body"].position.y)
-        self._height_n   += 1
+        self._upright_sum += math.cos(float(self.parts["body"].angle))
+        self._height_n += 1
 
         # Death from model.json fatal_ground_contact flags.
         fatal_from_model = {
@@ -175,12 +179,14 @@ class RagdollAgent:
         avg_speed = dist_x / age
         avg_h = (self._height_sum / self._height_n) if self._height_n else 0.0
         h_bonus = max(0.0, avg_h - 0.5)
+        avg_upright = (self._upright_sum / self._height_n) if self._height_n else 0.0
 
         score = (
             fitness_cfg["weight_distance"] * dist_x
-            + fitness_cfg["weight_speed"]    * avg_speed
-            + fitness_cfg["weight_height"]   * h_bonus
+            + fitness_cfg["weight_speed"] * avg_speed
+            + fitness_cfg["weight_height"] * h_bonus
             + fitness_cfg["weight_survival"] * self.age
+            + fitness_cfg["weight_upright"] * avg_upright
         )
         return max(0.0, float(score))
 

@@ -32,7 +32,8 @@
     "weight_distance": 1.0,
     "weight_speed": 1.0,
     "weight_height": 0.3,
-    "weight_survival": 0.1
+    "weight_survival": 0.1,
+    "weight_upright": 0.5
   },
   "rendering": {
     "pixels_per_meter": 200,
