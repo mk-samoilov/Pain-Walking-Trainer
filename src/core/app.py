@@ -293,7 +293,7 @@ class App:
         imgui.separator()
 
         _, self._paused = imgui.checkbox("Pause", self._paused)
-        _, self._speed = imgui.slider_int("Speed x", self._speed, 1, 100)
+        _, self._speed = imgui.slider_int("Speed x", self._speed, 1, 200)
         _, self._show_all = imgui.checkbox("Show all agents", self._show_all)
         _, self._show_collisions = imgui.checkbox("Show collisions", self._show_collisions)
         _, self._show_nn_window = imgui.checkbox("Show NN window", self._show_nn_window)
