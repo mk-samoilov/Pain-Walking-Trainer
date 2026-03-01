@@ -264,6 +264,31 @@ class Renderer:
 
         gl.glEnable(gl.GL_TEXTURE_2D)
 
+    def draw_laser(self, world_x: float, screen_w: int, screen_h: int) -> None:
+        """Draw a vertical death laser at the given world x coordinate."""
+
+        sx, _ = self._world_to_screen(world_x, 0, screen_w, screen_h)
+
+        gl.glDisable(gl.GL_TEXTURE_2D)
+
+        gl.glColor4f(1.0, 0.05, 0.05, 0.15)
+        gl.glBegin(gl.GL_QUADS)
+        gl.glVertex2f(sx - 10, 0)
+        gl.glVertex2f(sx + 10, 0)
+        gl.glVertex2f(sx + 10, float(screen_h))
+        gl.glVertex2f(sx - 10, float(screen_h))
+        gl.glEnd()
+
+        gl.glColor4f(1.0, 0.2, 0.05, 0.9)
+        gl.glLineWidth(2.5)
+        gl.glBegin(gl.GL_LINES)
+        gl.glVertex2f(sx, 0)
+        gl.glVertex2f(sx, float(screen_h))
+        gl.glEnd()
+        gl.glLineWidth(1.0)
+
+        gl.glEnable(gl.GL_TEXTURE_2D)
+
     def cleanup(self) -> None:
         """Delete all OpenGL textures."""
 

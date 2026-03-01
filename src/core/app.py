@@ -95,6 +95,10 @@ class App:
         self._pop_size = int(self._sim_cfg["population_size"])
         self._show_nn_window = True
 
+        self._laser_enabled = bool(self._sim_cfg.get("laser_enabled", False))
+        self._laser_speed = float(self._sim_cfg.get("laser_speed", 2.0))
+        self._laser_x = 0.0
+
         self._agents: list[RagdollAgent] = []
         self._networks: list[NeuralNetwork] = []
         self._genomes: list[np.ndarray] = []
@@ -164,6 +168,7 @@ class App:
         self._fitnesses = [0.0] * len(self._genomes)
         self._generation += 1
         self._watched_idx = 0
+        self._laser_x = -2.0
 
     def _best_idx(self) -> int:
         """Return the index of the agent with the highest fitness."""
@@ -192,6 +197,8 @@ class App:
             self._renderer.begin_frame(sw, sh)
             self._renderer.draw_ground(sw, sh)
             self._draw_agents(sw, sh)
+            if self._laser_enabled:
+                self._renderer.draw_laser(self._laser_x, sw, sh)
 
             if self._agents[self._watched_idx].alive:
                 inputs = self._agents[self._watched_idx].get_nn_inputs()
@@ -224,6 +231,10 @@ class App:
     def _step_physics(self) -> bool:
         """Step all living agents forward one timestep. Returns True when generation ends."""
 
+        dt = self._phys_cfg["time_step"]
+        if self._laser_enabled:
+            self._laser_x += self._laser_speed * dt
+
         all_done = True
         for i, (agent, network) in enumerate(zip(self._agents, self._networks)):
             if not agent.alive or agent.age >= self._sim_time:
@@ -231,6 +242,11 @@ class App:
             outputs = network.forward(agent.get_nn_inputs())
             agent.apply_nn_outputs(outputs)
             agent.step()
+            if self._laser_enabled and agent.alive:
+                for body in agent.parts.values():
+                    if float(body.position.x) <= self._laser_x:
+                        agent.alive = False
+                        break
             self._fitnesses[i] = agent.compute_fitness(self._fit_cfg)
             if agent.alive and agent.age < self._sim_time:
                 all_done = False
@@ -297,6 +313,12 @@ class App:
         _, self._show_all = imgui.checkbox("Show all agents", self._show_all)
         _, self._show_collisions = imgui.checkbox("Show collisions", self._show_collisions)
         _, self._show_nn_window = imgui.checkbox("Show NN window", self._show_nn_window)
+
+        imgui.separator()
+        _, self._laser_enabled = imgui.checkbox("Death laser", self._laser_enabled)
+        if self._laser_enabled:
+            _, self._laser_speed = imgui.slider_float("Laser speed (m/s)", self._laser_speed, 0.1, 20.0)
+            imgui.text(f"Laser x: {self._laser_x:.1f} m")
 
         imgui.separator()
         imgui.text("Next generation settings:")
