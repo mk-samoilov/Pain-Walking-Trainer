@@ -154,8 +154,8 @@
       "child": "upper_leg_L",
       "anchor_on_parent": [-0.10, -0.22],
       "anchor_on_child": [0.0, 0.15],
-      "angle_min": -1.5708,
-      "angle_max": 2.094,
+      "angle_min": -0.524,
+      "angle_max": 1.745,
       "motor_max_torque": 100.0,
       "motor_speed": 5.0
     },
@@ -164,8 +164,8 @@
       "child": "upper_leg_R",
       "anchor_on_parent": [0.10, -0.22],
       "anchor_on_child": [0.0, 0.15],
-      "angle_min": -2.094,
-      "angle_max": 1.5708,
+      "angle_min": -1.745,
+      "angle_max": 0.524,
       "motor_max_torque": 100.0,
       "motor_speed": 5.0
     },

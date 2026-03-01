@@ -18,7 +18,7 @@
     "population_size": 10,
     "simulation_time": 15.0,
     "speed_multiplier": 1,
-    "fatal_ground_parts": ["head", "upper_arm_L", "hand_L", "upper_arm_R", "hand_R"]
+    "fatal_ground_parts": ["head", "upper_arm_L", "hand_L", "upper_arm_R", "hand_R", "upper_leg_L", "upper_leg_R"]
   },
   "ai": {
     "hidden_layers": [32, 32],
