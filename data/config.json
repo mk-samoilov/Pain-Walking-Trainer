@@ -2,7 +2,7 @@
   "window": {
     "width": 1280,
     "height": 720,
-    "title": "WalkAI - 2D Walking Simulation",
+    "title": "2D Walking Trainer",
     "fps_target": 60,
     "vsync": true
   },
