@@ -21,12 +21,16 @@
     "fatal_ground_parts": ["head", "upper_arm_L", "hand_L", "upper_arm_R", "hand_R"]
   },
   "ai": {
-    "hidden_layers": [20, 20],
+    "hidden_layers": [32, 32],
     "activation": "tanh",
     "elite_count": 2,
     "mutation_rate": 0.1,
     "mutation_strength": 0.3,
-    "crossover_rate": 0.7
+    "crossover_rate": 0.7,
+    "initial_connection_rate": 0.6,
+    "connection_add_rate": 0.03,
+    "explorer_mutation_strength": 2.0,
+    "explorer_connection_add_rate": 0.2
   },
   "fitness": {
     "weight_distance": 1.0,

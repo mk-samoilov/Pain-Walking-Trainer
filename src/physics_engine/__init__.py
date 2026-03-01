@@ -14,6 +14,13 @@ JOINT_ORDER: list[str] = [
     "knee_L",     "knee_R",
 ]
 
+N_JOINTS = len(JOINT_ORDER)
+
+# NN input/output sizes — keep in sync with App constants.
+NN_INPUTS = 42   # 26 original + 4 foot positions + 1 head y + 2 accel + 9 prev motors
+NN_OUTPUTS = 18  # 9 motor speeds + 9 torque multipliers
+
+
 class RagdollAgent:
     """Single ragdoll agent with its own isolated pymunk space."""
 
@@ -32,7 +39,6 @@ class RagdollAgent:
         self.parts: dict[str, pymunk.Body] = {}
         self._joints: dict[str, tuple[pymunk.SimpleMotor, pymunk.RotaryLimitJoint]] = {}
         self._ground_contacts: set[str] = set()
-
         self._fatal_parts: frozenset[str] = frozenset(sim_cfg.get("fatal_ground_parts", []))
 
         self._create_ground()
@@ -45,12 +51,18 @@ class RagdollAgent:
         self._upright_sum = 0.0
         self._height_n = 0
 
+        # State needed for extended inputs.
+        body = self.parts["body"]
+        self._prev_vel = (float(body.velocity.x), float(body.velocity.y))
+        self._accel = (0.0, 0.0)
+        self._prev_motor_outputs = np.zeros(N_JOINTS, dtype=np.float32)
+
     def _create_ground(self) -> None:
         """Add a static ground segment to the space."""
 
         cfg = self._physics_cfg
         seg = pymunk.Segment(self.space.static_body, (-500, 0), (500, 0), 0)
-        seg.friction   = cfg["ground_friction"]
+        seg.friction = cfg["ground_friction"]
         seg.elasticity = cfg["ground_restitution"]
         self.space.add(seg)
 
@@ -59,18 +71,18 @@ class RagdollAgent:
 
         for name, part in self._model_cfg["parts"].items():
             ox, oy = part["offset"]
-            w, h   = part["width"], part["height"]
-            mass   = part["mass"]
+            w, h = part["width"], part["height"]
+            mass = part["mass"]
 
             if part.get("collision_shape") == "circle":
-                r      = w / 2
+                r = w / 2
                 moment = pymunk.moment_for_circle(mass, 0, r)
-                body   = pymunk.Body(mass, moment)
-                shape  = pymunk.Circle(body, r)
+                body = pymunk.Body(mass, moment)
+                shape = pymunk.Circle(body, r)
             else:
                 moment = pymunk.moment_for_box(mass, (w, h))
-                body   = pymunk.Body(mass, moment)
-                shape  = pymunk.Poly.create_box(body, (w, h))
+                body = pymunk.Body(mass, moment)
+                shape = pymunk.Poly.create_box(body, (w, h))
 
             body.position = (ox, oy + self.SPAWN_HEIGHT)
             shape.friction = 0.8 if name.startswith("foot") else 0.2
@@ -82,7 +94,7 @@ class RagdollAgent:
 
         for jname, jcfg in self._model_cfg["joints"].items():
             parent = self.parts[jcfg["parent"]]
-            child  = self.parts[jcfg["child"]]
+            child = self.parts[jcfg["child"]]
             ap, ac = jcfg["anchor_on_parent"], jcfg["anchor_on_child"]
 
             pivot = pymunk.PivotJoint(parent, child, (ap[0], ap[1]), (ac[0], ac[1]))
@@ -111,6 +123,11 @@ class RagdollAgent:
     def step(self) -> None:
         """Advance physics one timestep and evaluate death conditions."""
 
+        body = self.parts["body"]
+        vx, vy = float(body.velocity.x), float(body.velocity.y)
+        self._accel = (vx - self._prev_vel[0], vy - self._prev_vel[1])
+        self._prev_vel = (vx, vy)
+
         dt = self._physics_cfg["time_step"]
         self.space.step(dt)
         self._update_ground_contacts()
@@ -133,12 +150,16 @@ class RagdollAgent:
             self.alive = False
 
     def get_nn_inputs(self) -> np.ndarray:
-        """Build the 26-element input vector for the neural network."""
+        """Build the 42-element input vector for the neural network."""
 
         body = self.parts["body"]
         jcfg = self._model_cfg["joints"]
+        foot_L = self.parts["foot_L"]
+        foot_R = self.parts["foot_R"]
+        head = self.parts["head"]
 
         inputs: list[float] = [
+            # Body state (5)
             body.angle,
             body.angular_velocity,
             body.velocity.x,
@@ -146,32 +167,58 @@ class RagdollAgent:
             body.position.y,
         ]
 
+        # Joint angles relative to parent (9)
         for jname in JOINT_ORDER:
             p = self.parts[jcfg[jname]["parent"]]
             c = self.parts[jcfg[jname]["child"]]
             inputs.append(c.angle - p.angle)
 
+        # Joint angular velocities relative to parent (9)
         for jname in JOINT_ORDER:
             p = self.parts[jcfg[jname]["parent"]]
             c = self.parts[jcfg[jname]["child"]]
             inputs.append(c.angular_velocity - p.angular_velocity)
 
+        # Ground contacts (2)
         inputs.append(1.0 if "foot_L" in self._ground_contacts else 0.0)
         inputs.append(1.0 if "foot_R" in self._ground_contacts else 0.0)
+
+        # Body x position (1)
         inputs.append(body.position.x)
+
+        # Foot positions relative to body (4)
+        inputs.append(foot_L.position.x - body.position.x)
+        inputs.append(foot_L.position.y - body.position.y)
+        inputs.append(foot_R.position.x - body.position.x)
+        inputs.append(foot_R.position.y - body.position.y)
+
+        # Head height (1)
+        inputs.append(head.position.y)
+
+        # Body acceleration from previous step (2)
+        inputs.append(self._accel[0])
+        inputs.append(self._accel[1])
+
+        # Previous motor speed outputs — proprioception (9)
+        inputs.extend(self._prev_motor_outputs.tolist())
 
         return np.array(inputs, dtype=np.float32)
 
-    def apply_nn_outputs(self, motor_speeds: np.ndarray) -> None:
-        """Set joint motor rates from the 9-element network output."""
+    def apply_nn_outputs(self, outputs: np.ndarray) -> None:
+        """Set motor speeds and torque limits from the 18-element network output."""
 
         jcfg = self._model_cfg["joints"]
         for i, jname in enumerate(JOINT_ORDER):
             motor, _ = self._joints[jname]
-            motor.rate = float(motor_speeds[i]) * jcfg[jname]["motor_speed"]
+            motor.rate = float(outputs[i]) * jcfg[jname]["motor_speed"]
+            # Second half: torque multiplier, tanh → [0, 1].
+            torque_mult = (float(outputs[N_JOINTS + i]) + 1.0) * 0.5
+            motor.max_force = torque_mult * jcfg[jname]["motor_max_torque"]
+
+        self._prev_motor_outputs = outputs[:N_JOINTS].astype(np.float32)
 
     def compute_fitness(self, fitness_cfg: dict) -> float:
-        """Return a weighted fitness score based on distance, speed, height and age."""
+        """Return a weighted fitness score based on distance, speed, height, uprightness and age."""
 
         body = self.parts["body"]
         dist_x = float(body.position.x) - self._initial_x
@@ -183,10 +230,10 @@ class RagdollAgent:
 
         score = (
             fitness_cfg["weight_distance"] * dist_x
-            + fitness_cfg["weight_speed"] * avg_speed
-            + fitness_cfg["weight_height"] * h_bonus
+            + fitness_cfg["weight_speed"]    * avg_speed
+            + fitness_cfg["weight_height"]   * h_bonus
             + fitness_cfg["weight_survival"] * self.age
-            + fitness_cfg["weight_upright"] * avg_upright
+            + fitness_cfg["weight_upright"]  * avg_upright
         )
         return max(0.0, float(score))
 

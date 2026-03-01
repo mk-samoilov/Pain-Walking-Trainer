@@ -21,20 +21,43 @@ _PROJECT_ROOT = Path(__file__).parent.parent.parent
 class App:
     """Top-level application: owns the window, population and render loop."""
 
-    NN_INPUTS = 26
-    NN_OUTPUTS = 9
+    NN_INPUTS = 42
+    NN_OUTPUTS = 18
 
     _NN_INPUT_LABELS: list[str] = [
+        # Body state (5)
         "body.angle", "body.ω", "vel.x", "vel.y", "pos.y",
+        # Joint angles (9)
         "∠neck",  "∠sh_L",  "∠sh_R",  "∠el_L",  "∠el_R",
         "∠hip_L", "∠hip_R", "∠kn_L",  "∠kn_R",
+        # Joint angular velocities (9)
         "ω neck",  "ω sh_L", "ω sh_R", "ω el_L", "ω el_R",
         "ω hip_L", "ω hip_R","ω kn_L", "ω kn_R",
-        "ft_L↓", "ft_R↓", "pos.x",
+        # Ground contacts (2)
+        "ft_L↓", "ft_R↓",
+        # Body x (1)
+        "pos.x",
+        # Foot positions relative to body (4)
+        "ftL.rx", "ftL.ry", "ftR.rx", "ftR.ry",
+        # Head height (1)
+        "head.y",
+        # Body acceleration (2)
+        "acc.x", "acc.y",
+        # Previous motor outputs / proprioception (9)
+        "p.neck", "p.sh_L", "p.sh_R", "p.el_L", "p.el_R",
+        "p.hip_L","p.hip_R","p.kn_L", "p.kn_R",
     ]
     _NN_OUTPUT_LABELS: list[str] = [
-        "neck", "sh_L", "sh_R", "el_L", "el_R",
-        "hip_L", "hip_R", "kn_L", "kn_R",
+        # Motor speeds (9)
+        "spd.neck", "spd.sh_L", "spd.sh_R",
+        "spd.el_L", "spd.el_R",
+        "spd.hip_L","spd.hip_R",
+        "spd.kn_L", "spd.kn_R",
+        # Torque multipliers (9)
+        "trq.neck", "trq.sh_L", "trq.sh_R",
+        "trq.el_L", "trq.el_R",
+        "trq.hip_L","trq.hip_R",
+        "trq.kn_L", "trq.kn_R",
     ]
 
     def __init__(self) -> None:
@@ -57,8 +80,8 @@ class App:
             self._ren_cfg["pixels_per_meter"],
         )
 
-        self._ga = GeneticAlgorithm(self._ai_cfg)
         self._layer_sizes = [self.NN_INPUTS] + self._ai_cfg["hidden_layers"] + [self.NN_OUTPUTS]
+        self._ga = GeneticAlgorithm(self._ai_cfg, self._layer_sizes)
         self._generation = 0
         self._best_ever = 0.0
         self._gen_best_history: list[float] = []
@@ -78,6 +101,7 @@ class App:
         self._fitnesses: list[float] = []
         self._last_activations: list[np.ndarray] | None = None
         self._watched_idx = 0
+        self._explorer_idx = 0
 
         self._new_generation()
 
@@ -126,12 +150,14 @@ class App:
         """Evolve (or randomly initialize) genomes and spawn fresh agents."""
 
         if not self._genomes:
+            conn_rate = self._ai_cfg.get("initial_connection_rate", 1.0)
             self._genomes = [
-                NeuralNetwork(self._layer_sizes).get_genome()
+                NeuralNetwork(self._layer_sizes, conn_rate).get_genome()
                 for _ in range(self._pop_size)
             ]
+            self._explorer_idx = len(self._genomes) - 1
         else:
-            self._genomes = self._ga.evolve(self._genomes, self._fitnesses)
+            self._genomes, self._explorer_idx = self._ga.evolve(self._genomes, self._fitnesses)
 
         self._networks = [NeuralNetwork.from_genome(self._layer_sizes, g) for g in self._genomes]
         self._agents = [RagdollAgent(self._model, self._phys_cfg, self._sim_cfg) for _ in self._genomes]
@@ -229,7 +255,9 @@ class App:
                 if i == self._watched_idx or not agent.alive:
                     continue
                 states = agent.get_render_state()
-                self._renderer.draw_agent(states, sw, sh, color=(0.7, 0.7, 0.8, self._ghost_alpha))
+                color = (1.0, 0.75, 0.0, self._ghost_alpha) if i == self._explorer_idx \
+                    else (0.7, 0.7, 0.8, self._ghost_alpha)
+                self._renderer.draw_agent(states, sw, sh, color=color)
                 if self._show_collisions:
                     self._renderer.draw_collision_shapes(states, sw, sh)
 
@@ -260,6 +288,7 @@ class App:
         if self._fitnesses:
             imgui.text(f"Best now   : {max(self._fitnesses):.2f}")
             imgui.text(f"Avg now    : {sum(self._fitnesses) / len(self._fitnesses):.2f}")
+            imgui.text(f"Explorer   : {self._fitnesses[self._explorer_idx]:.2f}")
 
         imgui.separator()
 
@@ -308,7 +337,10 @@ class App:
 
         imgui.set_next_window_pos((310, 10), imgui.Cond_.once)
         imgui.set_next_window_size((700, 420), imgui.Cond_.once)
-        imgui.begin("Neural Network (best)")
+        watched_nn = self._networks[self._watched_idx]
+        active = watched_nn.active_connections
+        total = sum(w.size for w in watched_nn.weights)
+        imgui.begin(f"Neural Network — {active}/{total} connections")
 
         draw_list = imgui.get_window_draw_list()
         origin = imgui.get_cursor_screen_pos()
@@ -353,16 +385,17 @@ class App:
         font_h = imgui.get_font_size()
         text_col = im_col(210, 210, 210, 200)
         border = im_col(200, 200, 200, 180)
-        watched_nn = self._networks[self._watched_idx]
 
-
-        # Connections
+        # Connections — only active (mask > 0.5)
         for li in range(n_layers - 1):
             W = watched_nn.weights[li]
-            max_w = float(np.abs(W).max()) + 1e-6
+            M = watched_nn.masks[li]
+            max_w = float(np.abs(W * M).max()) + 1e-6
             for j in range(sizes[li + 1]):
                 yj = neuron_y(li + 1, j)
                 for i in range(sizes[li]):
+                    if M[j, i] < 0.5:
+                        continue
                     w = float(W[j, i])
                     norm = abs(w) / max_w
                     if norm < 0.08:
