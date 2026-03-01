@@ -318,8 +318,16 @@ class App:
         imgui.same_line()
 
         if imgui.button("Restart generation"):
-            self._agents    = [RagdollAgent(self._model, self._phys_cfg, self._sim_cfg) for _ in self._genomes]
+            self._agents = [RagdollAgent(self._model, self._phys_cfg, self._sim_cfg) for _ in self._genomes]
             self._fitnesses = [0.0] * len(self._genomes)
+
+        if imgui.button("Save"):
+            self._save()
+
+        imgui.same_line()
+
+        if imgui.button("Load"):
+            self._load()
 
         if len(self._gen_best_history) > 1:
             imgui.separator()
@@ -431,6 +439,50 @@ class App:
             draw_list.add_text((xl + nr + 5, y - font_h * 0.5), text_col, label)
 
         imgui.end()
+
+    # ------------------------------------------------------------------
+    # Save / Load
+    # ------------------------------------------------------------------
+
+    _SAVE_PATH = _PROJECT_ROOT / "data" / "save.npz"
+
+    def _save(self) -> None:
+        """Serialize full training state to data/save.npz."""
+
+        np.savez(
+            self._SAVE_PATH,
+            genomes=np.array(self._genomes),
+            fitnesses=np.array(self._fitnesses),
+            gen_best_history=np.array(self._gen_best_history),
+            layer_sizes=np.array(self._layer_sizes),
+            generation=np.array(self._generation),
+            best_ever=np.array(self._best_ever),
+            explorer_idx=np.array(self._explorer_idx),
+        )
+
+    def _load(self) -> None:
+        """Restore training state from data/save.npz, if it exists and is compatible."""
+
+        if not self._SAVE_PATH.exists():
+            return
+
+        data = np.load(self._SAVE_PATH)
+
+        if list(data["layer_sizes"].tolist()) != self._layer_sizes:
+            return  # network architecture mismatch — silently skip
+
+        self._genomes = list(data["genomes"])
+        self._fitnesses = list(data["fitnesses"].tolist())
+        self._gen_best_history = list(data["gen_best_history"].tolist())
+        self._generation = int(data["generation"])
+        self._best_ever = float(data["best_ever"])
+        self._explorer_idx = int(data["explorer_idx"])
+        self._pop_size = len(self._genomes)
+        self._last_activations = None
+
+        self._networks = [NeuralNetwork.from_genome(self._layer_sizes, g) for g in self._genomes]
+        self._agents = [RagdollAgent(self._model, self._phys_cfg, self._sim_cfg) for _ in self._genomes]
+        self._watched_idx = 0
 
     # ------------------------------------------------------------------
     # Shutdown
