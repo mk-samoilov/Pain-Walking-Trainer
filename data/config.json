@@ -36,8 +36,8 @@
   },
   "fitness": {
     "weight_distance": 1.0,
-    "weight_speed": 1.0,
-    "weight_height": 0.3,
+    "weight_speed": 1.4,
+    "weight_height": 0.47,
     "weight_survival": 0.1,
     "weight_upright": 0.5
   },
